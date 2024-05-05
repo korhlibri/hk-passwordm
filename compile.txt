@@ -1,0 +1,1 @@
+g++ -o main ./src/main.cpp -L ./target/release -lhk_passwordm -Wl,-rpath,./target/release -Wall -Wextra
