@@ -88,7 +88,7 @@ func main() {
 		},
 	)
 
-	bottomLeft := container.NewBorder(topLeft, nil, nil, nil, accountList)
+	leftItems := container.NewBorder(topLeft, nil, nil, nil, accountList)
 
 	// bottom right (selected account details)
 	accountDisplay := widget.NewLabel("No account currently selected!")
@@ -112,9 +112,9 @@ func main() {
 		showAccountData(id, listAccs, accountDisplay, accountUsername, accountPassword, accountDetailsWithActions)
 	}
 
-	bottomRight := container.New(layout.NewVBoxLayout(), topRight, layout.NewSpacer(), accountDetailsWithActions, layout.NewSpacer())
+	rightItems := container.New(layout.NewVBoxLayout(), topRight, layout.NewSpacer(), accountDetailsWithActions, layout.NewSpacer())
 
-	mainGrid := container.New(layout.NewAdaptiveGridLayout(2), bottomLeft, bottomRight)
+	mainGrid := container.New(layout.NewAdaptiveGridLayout(2), leftItems, rightItems)
 	mainWindow.SetContent(mainGrid)
 
 	mainWindow.ShowAndRun()
