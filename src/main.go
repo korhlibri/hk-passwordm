@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -36,6 +37,19 @@ func main() {
 	mainWindow.SetMaster()
 	mainWindow.Resize(fyne.NewSize(600, 400))
 
+	menu := fyne.NewMainMenu(
+		fyne.NewMenu("File",
+			fyne.NewMenuItem("New Password File", func() {}),
+			fyne.NewMenuItem("Open Password File", func() {}),
+		),
+		fyne.NewMenu("About",
+			fyne.NewMenuItem("License", func() {}),
+			fyne.NewMenuItem("Used Dependency Licenses", func() {}),
+		),
+	)
+
+	mainWindow.SetMainMenu(menu)
+
 	listAccs := accountsLoaded{
 		accounts:  []string{"Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2"},
 		maxLength: 25,
@@ -63,15 +77,14 @@ func main() {
 	topRight := container.NewBorder(nil, nil, nil, searchButton, searchField)
 
 	// bottom left (account listing)
-	accountList := widget.NewList(
-		func() int {
-			return len(listAccs.accounts)
-		},
+	boundAccounts := binding.BindStringList(&listAccs.accounts)
+
+	accountList := widget.NewListWithData(boundAccounts,
 		func() fyne.CanvasObject {
 			return widget.NewLabel("")
 		},
-		func(i widget.ListItemID, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(listAccs.accounts[i])
+		func(i binding.DataItem, o fyne.CanvasObject) {
+			o.(*widget.Label).Bind(i.(binding.String))
 		},
 	)
 
