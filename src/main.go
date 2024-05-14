@@ -38,7 +38,6 @@ func showAccountData(id int, accounts accountsLoaded, accountDisplay *widget.Lab
 }
 
 func main() {
-	fmt.Println(C.rust_function())
 	hkPasswordm := app.New()
 	mainWindow := hkPasswordm.NewWindow("hk-passwordm")
 	mainWindow.SetMaster()
