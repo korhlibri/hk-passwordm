@@ -12,6 +12,12 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+/*
+#cgo LDFLAGS: -L../target/release -lhk_passwordm
+#include "link.h"
+*/
+import "C"
+
 type accountsLoaded struct {
 	maxLength int
 	accounts  []string
@@ -32,6 +38,7 @@ func showAccountData(id int, accounts accountsLoaded, accountDisplay *widget.Lab
 }
 
 func main() {
+	fmt.Println(C.rust_function())
 	hkPasswordm := app.New()
 	mainWindow := hkPasswordm.NewWindow("hk-passwordm")
 	mainWindow.SetMaster()
@@ -117,5 +124,5 @@ func main() {
 	mainGrid := container.New(layout.NewAdaptiveGridLayout(2), leftItems, rightItems)
 	mainWindow.SetContent(mainGrid)
 
-	mainWindow.ShowAndRun()
+	// mainWindow.ShowAndRun()
 }
