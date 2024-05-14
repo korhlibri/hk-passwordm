@@ -23,3 +23,7 @@ go.sum
 
 # Go workspace file
 go.work
+
+# Linking and compiled binaries
+link.o
+app
