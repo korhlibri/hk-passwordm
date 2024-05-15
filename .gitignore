@@ -27,3 +27,4 @@ go.work
 # Linking and compiled binaries
 link.o
 app
+libhk_passwordm.a
