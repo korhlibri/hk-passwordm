@@ -10,6 +10,7 @@ go.sum
 *.exe~
 *.dll
 *.so
+*.a
 *.dylib
 
 # Test binary, built with `go test -c`
@@ -27,4 +28,3 @@ go.work
 # Linking and compiled binaries
 link.o
 app
-libhk_passwordm.a
