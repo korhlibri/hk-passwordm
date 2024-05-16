@@ -123,5 +123,5 @@ func main() {
 	mainGrid := container.New(layout.NewAdaptiveGridLayout(2), leftItems, rightItems)
 	mainWindow.SetContent(mainGrid)
 
-	// mainWindow.ShowAndRun()
+	mainWindow.ShowAndRun()
 }
