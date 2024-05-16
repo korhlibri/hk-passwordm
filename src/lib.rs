@@ -8,6 +8,8 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::prelude::*;
 use std::str;
+use libc::c_char;
+use std::ffi::CStr;
 
 fn fill_random_bytes(slice_to_fill: &[u8], target_length: usize) -> (Vec<u8>, u8) {
     if slice_to_fill.len() < target_length {
@@ -50,7 +52,19 @@ fn remove_padding(slice_remove_pad: &[u8]) -> (Vec<u8>, u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn create_password_file(file_location: &str, key: &str) -> u8 {
+pub extern "C" fn create_password_file(file_location: *const c_char, key: *const c_char) -> u8 {
+    // convert C char string to Rust string literals
+    let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
+    let file_location = match file_location_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let key_c: &CStr = unsafe { CStr::from_ptr(key) };
+    let key = match key_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+
     let key_bytes = key.as_bytes();
     if key_bytes.len() < 32 {
         return 1

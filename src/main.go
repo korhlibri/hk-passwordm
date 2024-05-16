@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -37,6 +38,11 @@ func showAccountData(id int, accounts accountsLoaded, accountDisplay *widget.Lab
 	accountGrid.Hidden = false
 }
 
+func newPasswordFile(parent fyne.Window) {
+	newFileDialog := dialog.NewFileSave(nil, parent)
+	newFileDialog.Show()
+}
+
 func main() {
 	hkPasswordm := app.New()
 	mainWindow := hkPasswordm.NewWindow("hk-passwordm")
@@ -45,7 +51,7 @@ func main() {
 
 	menu := fyne.NewMainMenu(
 		fyne.NewMenu("File",
-			fyne.NewMenuItem("New Password File", func() {}),
+			fyne.NewMenuItem("New Password File", func() { go newPasswordFile(mainWindow) }),
 			fyne.NewMenuItem("Open Password File", func() {}),
 		),
 		fyne.NewMenu("About",

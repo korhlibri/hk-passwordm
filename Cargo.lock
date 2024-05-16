@@ -99,6 +99,7 @@ name = "hk-passwordm"
 version = "0.1.0"
 dependencies = [
  "chacha20poly1305",
+ "libc",
 ]
 
 [[package]]
