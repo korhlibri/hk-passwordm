@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"fyne.io/fyne/v2"
@@ -11,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 /*
@@ -38,8 +40,32 @@ func showAccountData(id int, accounts accountsLoaded, accountDisplay *widget.Lab
 	accountGrid.Hidden = false
 }
 
+func derivePassword(password string) []byte {
+	return pbkdf2.Key([]byte(password), []byte("E7xtlY9rHf"), 4096, 32, sha256.New)
+}
+
+func getKeyWindow(parent fyne.Window, fileLocation string) {
+	passwordField := widget.NewPasswordEntry()
+	passwordFormItem := widget.NewFormItem("Enter Password :", passwordField)
+	passwordForm := dialog.NewForm("Password Entry", "Confirm Password for File", "Cancel", []*widget.FormItem{passwordFormItem}, func(passed bool) {
+		if passwordField.Text != "" {
+			password := derivePassword(passwordField.Text)
+			fmt.Println(password)
+			// C.create_password_file(C.CString(fileLocation))
+		}
+	}, parent)
+	passwordForm.Show()
+}
+
 func newPasswordFile(parent fyne.Window) {
-	newFileDialog := dialog.NewFileSave(nil, parent)
+	newFileDialog := dialog.NewFileSave(func(write fyne.URIWriteCloser, err error) {
+		if err != nil || write == nil {
+			return
+		} else {
+			getKeyWindow(parent, write.URI().String())
+		}
+	}, parent)
+	newFileDialog.SetFileName("passwords.hkpswd")
 	newFileDialog.Show()
 }
 
@@ -51,7 +77,7 @@ func main() {
 
 	menu := fyne.NewMainMenu(
 		fyne.NewMenu("File",
-			fyne.NewMenuItem("New Password File", func() { go newPasswordFile(mainWindow) }),
+			fyne.NewMenuItem("New Password File", func() { newPasswordFile(mainWindow) }),
 			fyne.NewMenuItem("Open Password File", func() {}),
 		),
 		fyne.NewMenu("About",
