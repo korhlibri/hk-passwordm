@@ -27,10 +27,10 @@ type accountsLoaded struct {
 	page      int
 }
 
-type currentAccount struct {
-	account  string
-	username string
-	password string
+var listAccs = accountsLoaded{
+	accounts:  []string{},
+	maxLength: 25,
+	page:      1,
 }
 
 func showAccountData(id int, accounts accountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
@@ -44,14 +44,26 @@ func derivePassword(password string) []byte {
 	return pbkdf2.Key([]byte(password), []byte("E7xtlY9rHf"), 4096, 32, sha256.New)
 }
 
+func displayErrorDialog(err int, parent fyne.Window) {
+	dialog.ShowInformation("Error", fmt.Sprintf("An error has occured. Error code : %d.", err), parent)
+}
+
+func getFileHeader(fileLocation string, key []byte) {
+
+}
+
 func getKeyWindow(parent fyne.Window, fileLocation string) {
 	passwordField := widget.NewPasswordEntry()
 	passwordFormItem := widget.NewFormItem("Enter Password :", passwordField)
 	passwordForm := dialog.NewForm("Password Entry", "Confirm Password for File", "Cancel", []*widget.FormItem{passwordFormItem}, func(passed bool) {
 		if passwordField.Text != "" {
 			password := derivePassword(passwordField.Text)
-			err := C.create_password_file(C.CString(fileLocation[7:]), C.CString(string(password)))
-			fmt.Println(err)
+			err := int(C.create_password_file(C.CString(fileLocation[7:]), C.CString(string(password))))
+			if err != 0 {
+				displayErrorDialog(err, parent)
+			} else {
+
+			}
 		}
 	}, parent)
 	passwordForm.Show()
@@ -87,12 +99,6 @@ func main() {
 	)
 
 	mainWindow.SetMainMenu(menu)
-
-	listAccs := accountsLoaded{
-		accounts:  []string{"Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2", "Account1", "Account2"},
-		maxLength: 25,
-		page:      1,
-	}
 
 	// top left (pagination and adding accounts)
 	pastPage := widget.NewButton("<", func() {})

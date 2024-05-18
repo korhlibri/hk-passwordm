@@ -104,8 +104,7 @@ pub extern "C" fn create_password_file(file_location: *const c_char, key: *const
     return 0
 }
 
-#[no_mangle]
-pub extern "C" fn read_header(file_location: &str, key: &str) -> (String, u8) {
+fn read_header(file_location: &str, key: &str) -> (String, u8) {
     let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
 
     let mut buffer = [0u8; 8];
@@ -459,8 +458,7 @@ pub extern "C" fn delete_account(file_location: &str, key: &str, account: &str) 
     return 0;
 }
 
-#[no_mangle]
-pub extern "C" fn read_message(file_location: &str, key: &str, message_id: usize) -> (Vec<String>, u8) {
+fn read_message(file_location: &str, key: &str, message_id: usize) -> (Vec<String>, u8) {
     let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
     let (encrypted_account, err) = read_raw_message(file_location, message_id);
     if err != 0 {
@@ -483,4 +481,45 @@ pub extern "C" fn read_message(file_location: &str, key: &str, message_id: usize
     };
 
     return (utf8_decoded.split("|").map(|s| s.to_string()).collect::<Vec<String>>(), 0);
+}
+
+#[repr(C)]
+pub struct MessageAndError {
+    message: Vec<String>,
+    error: i32,
+}
+
+#[no_mangle]
+pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const c_char, message_id: usize) -> MessageAndError {
+    // convert C char string to Rust string literals
+    let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
+    let file_location = match file_location_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return MessageAndError{ message: vec![], error: 9 },
+    };
+    let key_c: &CStr = unsafe { CStr::from_ptr(key) };
+    let key = key_c.to_bytes();
+
+    let key = GenericArray::clone_from_slice(&(key)[..32]);
+    let (encrypted_account, err) = read_raw_message(file_location, message_id);
+    if err != 0 {
+        return MessageAndError{ message: vec![], error: err as i32 };
+    }
+
+    let nonce = GenericArray::clone_from_slice(&encrypted_account[..24]);
+    let cipher = XChaCha20Poly1305::new(&key);
+
+    let decrypted_message = match cipher.decrypt(&nonce, encrypted_account[24..].as_ref()) {
+        Ok(m) => m,
+        Err(_) => return MessageAndError{ message: vec![], error: 3 },
+    };
+
+    let (unpadded_message, _) = remove_padding(&decrypted_message);
+
+    let utf8_decoded = match str::from_utf8(&unpadded_message) {
+        Ok(m) => m,
+        Err(_) => return MessageAndError{ message: vec![], error: 3 },
+    };
+
+    return MessageAndError{ message: utf8_decoded.split("|").map(|s| s.to_string()).collect::<Vec<String>>(), error: 0};
 }
