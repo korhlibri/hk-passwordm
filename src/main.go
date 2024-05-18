@@ -50,8 +50,8 @@ func getKeyWindow(parent fyne.Window, fileLocation string) {
 	passwordForm := dialog.NewForm("Password Entry", "Confirm Password for File", "Cancel", []*widget.FormItem{passwordFormItem}, func(passed bool) {
 		if passwordField.Text != "" {
 			password := derivePassword(passwordField.Text)
-			fmt.Println(password)
-			// C.create_password_file(C.CString(fileLocation))
+			err := C.create_password_file(C.CString(fileLocation[7:]), C.CString(string(password)))
+			fmt.Println(err)
 		}
 	}, parent)
 	passwordForm.Show()

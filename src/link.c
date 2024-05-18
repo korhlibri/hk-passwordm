@@ -1,7 +1,7 @@
 #include "link.h"
 
-int create_password_file() {
-    return create_password_file();
+int create_password_file(const char *file, const char *key) {
+    return create_password_file(file, key);
 }
 
 int read_header() {

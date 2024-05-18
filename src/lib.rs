@@ -52,7 +52,7 @@ fn remove_padding(slice_remove_pad: &[u8]) -> (Vec<u8>, u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn create_password_file(file_location: *const c_char, key: *const c_char) -> u8 {
+pub extern "C" fn create_password_file(file_location: *const c_char, key: *const c_char) -> i32 {
     // convert C char string to Rust string literals
     let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
     let file_location = match file_location_c.to_str() {
@@ -60,16 +60,12 @@ pub extern "C" fn create_password_file(file_location: *const c_char, key: *const
         Err(_) => return 9,
     };
     let key_c: &CStr = unsafe { CStr::from_ptr(key) };
-    let key = match key_c.to_str() {
-        Ok(v) => v,
-        Err(_) => return 9,
-    };
+    let key = key_c.to_bytes();
 
-    let key_bytes = key.as_bytes();
-    if key_bytes.len() < 32 {
+    if key.len() < 32 {
         return 1
     }
-    let key = GenericArray::clone_from_slice(&key_bytes[..32]);
+    let key = GenericArray::clone_from_slice(&key[..32]);
     let cipher = XChaCha20Poly1305::new(&key);
 
     let generate_nonce = {
