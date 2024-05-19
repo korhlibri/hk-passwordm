@@ -198,7 +198,7 @@ fn read_raw_message(file_location: &str, message_id: usize) -> (Vec<u8>, u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn add_account(file_location: *const c_char, key: *const c_char, account: *const c_char, username: *const c_char, password: *const c_char) -> u8 {
+pub extern "C" fn add_account(file_location: *const c_char, key: *const c_char, account: *const c_char, username: *const c_char, password: *const c_char) -> i32 {
     // convert C char string to Rust string literals
     let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
     let file_location = match file_location_c.to_str() {
@@ -322,7 +322,7 @@ pub extern "C" fn add_account(file_location: *const c_char, key: *const c_char, 
 }
 
 #[no_mangle]
-pub extern "C" fn modify_account(file_location: *const c_char, key: *const c_char, account: *const c_char, username: *const c_char, password: *const c_char) -> u8 {
+pub extern "C" fn modify_account(file_location: *const c_char, key: *const c_char, account: *const c_char, username: *const c_char, password: *const c_char) -> i32 {
     // convert C char string to Rust string literals
     let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
     let file_location = match file_location_c.to_str() {
@@ -431,7 +431,7 @@ pub extern "C" fn modify_account(file_location: *const c_char, key: *const c_cha
 }
 
 #[no_mangle]
-pub extern "C" fn delete_account(file_location: *const c_char, key: *const c_char, account: *const c_char) -> u8 {
+pub extern "C" fn delete_account(file_location: *const c_char, key: *const c_char, account: *const c_char) -> i32 {
     // convert C char string to Rust string literals
     let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
     let file_location = match file_location_c.to_str() {

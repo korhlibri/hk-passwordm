@@ -10,18 +10,18 @@ struct MessageAndError read_message_extern(const char *file, const char *key, in
     return read_message_extern(file, key, message_id);
 }
 
-int add_account() {
-    return add_account();
+int add_account(const char *file, const char *key, const char *account, const char *username, const char *password) {
+    return add_account(file, key, account, username, password);
 }
 
-int modify_account() {
-    return modify_account();
+int modify_account(const char *file, const char *key, const char *account, const char *username, const char *password) {
+    return modify_account(file, key, account, username, password);
 }
 
-int delete_account() {
-    return delete_account();
+int delete_account(const char *file, const char *key, const char *account) {
+    return delete_account(file, key, account);
 }
 
-int read_message() {
-    return read_message();
+void deallocate_cstring(char *to_deallocate) {
+    return deallocate_cstring(to_deallocate);
 }
