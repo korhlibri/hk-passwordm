@@ -1,11 +1,13 @@
 #include "link.h"
 
+struct MessageAndError;
+
 int create_password_file(const char *file, const char *key) {
     return create_password_file(file, key);
 }
 
-int read_header() {
-    return read_header();
+struct MessageAndError read_message_extern(const char *file, const char *key, int message_id) {
+    return read_message_extern(file, key, message_id);
 }
 
 int add_account() {

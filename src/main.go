@@ -21,19 +21,24 @@ import (
 */
 import "C"
 
-type accountsLoaded struct {
+type AccountsLoaded struct {
 	maxLength int
 	accounts  []string
 	page      int
 }
 
-var listAccs = accountsLoaded{
+type MessageAndError struct {
+	message C.string
+	err     C.int
+}
+
+var listAccs = AccountsLoaded{
 	accounts:  []string{},
 	maxLength: 25,
 	page:      1,
 }
 
-func showAccountData(id int, accounts accountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
+func showAccountData(id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
 	accountDisplay.SetText(fmt.Sprintf(accounts.accounts[id]))
 	accountUsername.SetText("Test")
 	accountPassword.SetText("Test")

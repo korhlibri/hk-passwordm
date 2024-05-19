@@ -9,7 +9,7 @@ use std::io::SeekFrom;
 use std::io::prelude::*;
 use std::str;
 use libc::c_char;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
 fn fill_random_bytes(slice_to_fill: &[u8], target_length: usize) -> (Vec<u8>, u8) {
     if slice_to_fill.len() < target_length {
@@ -104,8 +104,8 @@ pub extern "C" fn create_password_file(file_location: *const c_char, key: *const
     return 0
 }
 
-fn read_header(file_location: &str, key: &str) -> (String, u8) {
-    let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
+fn read_header(file_location: &str, key: &[u8]) -> (String, u8) {
+    let key = GenericArray::clone_from_slice(&(key)[..32]);
 
     let mut buffer = [0u8; 8];
     let mut f = match File::open(file_location) {
@@ -198,7 +198,31 @@ fn read_raw_message(file_location: &str, message_id: usize) -> (Vec<u8>, u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn add_account(file_location: &str, key: &str, account: &str, username: &str, password: &str) -> u8 {
+pub extern "C" fn add_account(file_location: *const c_char, key: *const c_char, account: *const c_char, username: *const c_char, password: *const c_char) -> u8 {
+    // convert C char string to Rust string literals
+    let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
+    let file_location = match file_location_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let key_c: &CStr = unsafe { CStr::from_ptr(key) };
+    let key = key_c.to_bytes();
+    let account_c = unsafe { CStr::from_ptr(account) };
+    let account = match account_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let username_c = unsafe { CStr::from_ptr(username) };
+    let username = match username_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let password_c = unsafe { CStr::from_ptr(password) };
+    let password = match password_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+
     let (current_header, err) = read_header(file_location, key);
     if err != 0 {
         return 1;
@@ -218,7 +242,7 @@ pub extern "C" fn add_account(file_location: &str, key: &str, account: &str, use
 
     let new_account = format!("{}|{}|{}", account, username, password);
 
-    let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
+    let key = GenericArray::clone_from_slice(&(key)[..32]);
     let cipher = XChaCha20Poly1305::new(&key);
 
     match File::create(format!("{}.new", file_location)) {
@@ -298,7 +322,31 @@ pub extern "C" fn add_account(file_location: &str, key: &str, account: &str, use
 }
 
 #[no_mangle]
-pub extern "C" fn modify_account(file_location: &str, key: &str, account: &str, username: &str, password: &str) -> u8 {
+pub extern "C" fn modify_account(file_location: *const c_char, key: *const c_char, account: *const c_char, username: *const c_char, password: *const c_char) -> u8 {
+    // convert C char string to Rust string literals
+    let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
+    let file_location = match file_location_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let key_c: &CStr = unsafe { CStr::from_ptr(key) };
+    let key = key_c.to_bytes();
+    let account_c = unsafe { CStr::from_ptr(account) };
+    let account = match account_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let username_c = unsafe { CStr::from_ptr(username) };
+    let username = match username_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let password_c = unsafe { CStr::from_ptr(password) };
+    let password = match password_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+
     let (current_header, err) = read_header(file_location, key);
     if err != 0 {
         return 1;
@@ -336,7 +384,7 @@ pub extern "C" fn modify_account(file_location: &str, key: &str, account: &str, 
         return 7;
     }
 
-    let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
+    let key = GenericArray::clone_from_slice(&(key)[..32]);
     let cipher = XChaCha20Poly1305::new(&key);
 
     let ciphertext = match cipher.encrypt(&nonce, new_account.as_ref()) {
@@ -383,7 +431,21 @@ pub extern "C" fn modify_account(file_location: &str, key: &str, account: &str, 
 }
 
 #[no_mangle]
-pub extern "C" fn delete_account(file_location: &str, key: &str, account: &str) -> u8 {
+pub extern "C" fn delete_account(file_location: *const c_char, key: *const c_char, account: *const c_char) -> u8 {
+    // convert C char string to Rust string literals
+    let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
+    let file_location = match file_location_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+    let key_c: &CStr = unsafe { CStr::from_ptr(key) };
+    let key = key_c.to_bytes();
+    let account_c = unsafe { CStr::from_ptr(account) };
+    let account = match account_c.to_str() {
+        Ok(v) => v,
+        Err(_) => return 9,
+    };
+
     let (current_header, err) = read_header(file_location, key);
     if err != 0 {
         return 1;
@@ -400,7 +462,7 @@ pub extern "C" fn delete_account(file_location: &str, key: &str, account: &str) 
 
     let new_header = header_parts.join("|");
 
-    let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
+    let key = GenericArray::clone_from_slice(&(key)[..32]);
     let cipher = XChaCha20Poly1305::new(&key);
 
     let (generate_nonce, err) = fill_random_bytes("".as_bytes(), 24);
@@ -458,8 +520,8 @@ pub extern "C" fn delete_account(file_location: &str, key: &str, account: &str) 
     return 0;
 }
 
-fn read_message(file_location: &str, key: &str, message_id: usize) -> (Vec<String>, u8) {
-    let key = GenericArray::clone_from_slice(&(key.as_bytes())[..32]);
+fn read_message(file_location: &str, key: &[u8], message_id: usize) -> (Vec<String>, u8) {
+    let key = GenericArray::clone_from_slice(&(key)[..32]);
     let (encrypted_account, err) = read_raw_message(file_location, message_id);
     if err != 0 {
         return (vec![], err);
@@ -485,8 +547,8 @@ fn read_message(file_location: &str, key: &str, message_id: usize) -> (Vec<Strin
 
 #[repr(C)]
 pub struct MessageAndError {
-    message: Vec<String>,
-    error: i32,
+    message: *mut c_char,
+    err: i32,
 }
 
 #[no_mangle]
@@ -495,7 +557,7 @@ pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const 
     let file_location_c: &CStr = unsafe { CStr::from_ptr(file_location) };
     let file_location = match file_location_c.to_str() {
         Ok(v) => v,
-        Err(_) => return MessageAndError{ message: vec![], error: 9 },
+        Err(_) => return MessageAndError{ message: CString::new("").unwrap().into_raw(), err: 9 },
     };
     let key_c: &CStr = unsafe { CStr::from_ptr(key) };
     let key = key_c.to_bytes();
@@ -503,7 +565,7 @@ pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const 
     let key = GenericArray::clone_from_slice(&(key)[..32]);
     let (encrypted_account, err) = read_raw_message(file_location, message_id);
     if err != 0 {
-        return MessageAndError{ message: vec![], error: err as i32 };
+        return MessageAndError{ message: CString::new("").unwrap().into_raw(), err: err as i32 };
     }
 
     let nonce = GenericArray::clone_from_slice(&encrypted_account[..24]);
@@ -511,15 +573,19 @@ pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const 
 
     let decrypted_message = match cipher.decrypt(&nonce, encrypted_account[24..].as_ref()) {
         Ok(m) => m,
-        Err(_) => return MessageAndError{ message: vec![], error: 3 },
+        Err(_) => return MessageAndError{ message: CString::new("").unwrap().into_raw(), err: 3 },
     };
 
     let (unpadded_message, _) = remove_padding(&decrypted_message);
 
     let utf8_decoded = match str::from_utf8(&unpadded_message) {
         Ok(m) => m,
-        Err(_) => return MessageAndError{ message: vec![], error: 3 },
+        Err(_) => return MessageAndError{ message: CString::new("").unwrap().into_raw(), err: 3 },
     };
 
-    return MessageAndError{ message: utf8_decoded.split("|").map(|s| s.to_string()).collect::<Vec<String>>(), error: 0};
+    return MessageAndError{ message: CString::new(utf8_decoded).unwrap().into_raw(), err: 0};
+}
+
+pub extern "C" fn deallocate_cstring(to_deallocate: *mut c_char) {
+    unsafe { drop(CString::from_raw(to_deallocate)); };
 }
