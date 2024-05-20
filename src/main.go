@@ -257,6 +257,22 @@ func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, a
 	confirmDialog.Show()
 }
 
+func pageLeft(accountPage binding.ExternalInt, accountList binding.ExternalStringList) {
+	if listAccs.page <= 1 {
+		listAccs.page = 1
+	} else {
+		listAccs.page -= 1
+	}
+	accountPage.Reload()
+	updateListAccs(accountList)
+}
+
+func pageRight(accountPage binding.ExternalInt, accountList binding.ExternalStringList) {
+	listAccs.page += 1
+	accountPage.Reload()
+	updateListAccs(accountList)
+}
+
 func displayLicense(hkPasswordm fyne.App) {
 	licenseWindow := hkPasswordm.NewWindow("License")
 
@@ -294,6 +310,7 @@ func main() {
 	mainWindow.Resize(fyne.NewSize(640, 420))
 
 	boundAccounts := binding.BindStringList(&listAccs.accounts)
+	boundPage := binding.BindInt(&listAccs.page)
 
 	menu := fyne.NewMainMenu(
 		fyne.NewMenu("File",
@@ -320,9 +337,9 @@ func main() {
 	)
 
 	// top left (pagination and adding accounts)
-	pastPage := widget.NewButton("<", func() {})
-	setPage := widget.NewEntry()
-	nextPage := widget.NewButton(">", func() {})
+	pastPage := widget.NewButton("<", func() { pageLeft(boundPage, boundAccounts) })
+	setPage := widget.NewLabelWithData(binding.IntToString(boundPage))
+	nextPage := widget.NewButton(">", func() { pageRight(boundPage, boundAccounts) })
 
 	loadingBar := widget.NewProgressBarInfinite()
 	loadingBar.Hide()
