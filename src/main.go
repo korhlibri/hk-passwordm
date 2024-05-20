@@ -15,6 +15,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/crypto/pbkdf2"
+
+	_ "embed"
 )
 
 /*
@@ -22,6 +24,12 @@ import (
 #include "link.h"
 */
 import "C"
+
+//go:embed ./license.txt
+var license string
+
+//go:embed ./dependency_licenses.txt
+var dependency_licenses string
 
 type AccountsLoaded struct {
 	maxLength int
@@ -205,7 +213,7 @@ func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
 	}
 }
 
-func modifyAccount(parent fyne.Window, accountList binding.ExternalStringList, account string, username string, password string) {
+func modifyAccount(parent fyne.Window, account string, username string, password string) {
 	err := int(C.modify_account(C.CString(filelocation[7:]), C.CString(string(key)), C.CString(account), C.CString(username), C.CString(password)))
 	if err != 0 {
 		displayErrorDialog(err, parent)
@@ -218,11 +226,35 @@ func modifyAccount(parent fyne.Window, accountList binding.ExternalStringList, a
 			if err != 0 {
 				displayErrorDialog(err, parent)
 			} else {
-				updateListAccs(accountList)
 				dialog.ShowInformation("Success", "Account modified successfully", parent)
 			}
 		}
 	}
+}
+
+func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, account string) {
+	confirmDialog := dialog.NewConfirm("Delete Account", "Are you sure you would like to delete this account?", func(confirm bool) {
+		if confirm {
+			err := int(C.delete_account(C.CString(filelocation[7:]), C.CString(string(key)), C.CString(account)))
+			if err != 0 {
+				displayErrorDialog(err, parent)
+			} else {
+				err := replaceNewFileWithOld()
+				if err != 0 {
+					dialog.ShowInformation("Error", "There was an error applying changes to the old file", parent)
+				} else {
+					err := getFileHeader(filelocation, key)
+					if err != 0 {
+						displayErrorDialog(err, parent)
+					} else {
+						updateListAccs(accountList)
+						dialog.ShowInformation("Success", "Account modified successfully", parent)
+					}
+				}
+			}
+		}
+	}, parent)
+	confirmDialog.Show()
 }
 
 func main() {
@@ -286,9 +318,11 @@ func main() {
 	accountPassword := widget.NewPasswordEntry()
 
 	accountModify := widget.NewButton("Modify Account Data", func() {
-		modifyAccount(mainWindow, boundAccounts, accountDisplay.Text, accountUsername.Text, accountPassword.Text)
+		modifyAccount(mainWindow, accountDisplay.Text, accountUsername.Text, accountPassword.Text)
 	})
-	accountDelete := widget.NewButton("Delete Account", func() {})
+	accountDelete := widget.NewButton("Delete Account", func() {
+		deleteAccount(mainWindow, boundAccounts, accountDisplay.Text)
+	})
 	accountDetailsGrid := container.New(
 		layout.NewGridLayout(2),
 		widget.NewLabel("Account: "),
