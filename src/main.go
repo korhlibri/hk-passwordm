@@ -66,8 +66,8 @@ func displayErrorDialog(err int, parent fyne.Window) {
 	dialog.ShowInformation("Error", fmt.Sprintf("An error has occured. Error code : %d", err), parent)
 }
 
-func getFileHeader(fileLocation string) int {
-	header_error := C.read_message_extern(C.CString(fileLocation[7:]), C.CString(string(key)), 0)
+func getFileHeader(fileLocation string, keyToUse []byte) int {
+	header_error := C.read_message_extern(C.CString(fileLocation[7:]), C.CString(string(keyToUse)), 0)
 	if int(header_error.err) != 0 {
 		return int(header_error.err)
 	} else {
@@ -78,23 +78,38 @@ func getFileHeader(fileLocation string) int {
 	}
 }
 
-func getKeyWindow(parent fyne.Window, fileLocation string) {
+func getKeyWindow(parent fyne.Window, fileLocation string, accountList binding.ExternalStringList, op int) {
 	passwordField := widget.NewPasswordEntry()
 	passwordFormItem := widget.NewFormItem("Enter Password :", passwordField)
 	passwordForm := dialog.NewForm("Password Entry", "Confirm Password for File", "Cancel", []*widget.FormItem{passwordFormItem}, func(passed bool) {
 		if passwordField.Text != "" {
 			password := derivePassword(passwordField.Text)
-			err := int(C.create_password_file(C.CString(fileLocation[7:]), C.CString(string(password))))
-			if err != 0 {
-				displayErrorDialog(err, parent)
-			} else {
-				key = password
-				err := getFileHeader(fileLocation)
+			if op == 0 {
+				err := int(C.create_password_file(C.CString(fileLocation[7:]), C.CString(string(password))))
 				if err != 0 {
 					displayErrorDialog(err, parent)
 				} else {
-					dialog.ShowInformation("Success", "File created and loaded successfully", parent)
+					keytemp := password
+					err := getFileHeader(fileLocation, keytemp)
+					if err != 0 {
+						displayErrorDialog(err, parent)
+					} else {
+						key = keytemp
+						dialog.ShowInformation("Success", "File created and loaded successfully", parent)
+						filelocation = fileLocation
+						updateListAccs(accountList)
+					}
+				}
+			} else if op == 1 {
+				keytemp := password
+				err := getFileHeader(fileLocation, keytemp)
+				if err != 0 {
+					displayErrorDialog(err, parent)
+				} else {
+					key = keytemp
+					dialog.ShowInformation("Success", "File loaded successfully", parent)
 					filelocation = fileLocation
+					updateListAccs(accountList)
 				}
 			}
 		} else {
@@ -104,16 +119,27 @@ func getKeyWindow(parent fyne.Window, fileLocation string) {
 	passwordForm.Show()
 }
 
-func newPasswordFile(parent fyne.Window) {
+func newPasswordFile(parent fyne.Window, accountList binding.ExternalStringList) {
 	newFileDialog := dialog.NewFileSave(func(write fyne.URIWriteCloser, err error) {
 		if err != nil || write == nil {
 			return
 		} else {
-			getKeyWindow(parent, write.URI().String())
+			getKeyWindow(parent, write.URI().String(), accountList, 0)
 		}
 	}, parent)
 	newFileDialog.SetFileName("passwords.hkpswd")
 	newFileDialog.Show()
+}
+
+func openPasswordFile(parent fyne.Window, accountList binding.ExternalStringList) {
+	openFileDialog := dialog.NewFileOpen(func(read fyne.URIReadCloser, err error) {
+		if err != nil || read == nil {
+			return
+		} else {
+			getKeyWindow(parent, read.URI().String(), accountList, 1)
+		}
+	}, parent)
+	openFileDialog.Show()
 }
 
 func replaceNewFileWithOld() int {
@@ -133,7 +159,7 @@ func showAccountData(id int, accounts AccountsLoaded, accountDisplay *widget.Lab
 }
 
 func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
-	if filelocation == "" {
+	if filelocation == "" || key == nil {
 		dialog.ShowInformation("Error", "You need to load an account file first. Go to File and create a new password file or open an existing one", parent)
 	} else {
 		accountField := widget.NewEntry()
@@ -154,7 +180,7 @@ func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
 					if err != 0 {
 						dialog.ShowInformation("Error", "There was an error applying changes to the old file", parent)
 					} else {
-						err := getFileHeader(filelocation)
+						err := getFileHeader(filelocation, key)
 						if err != 0 {
 							displayErrorDialog(err, parent)
 						} else {
@@ -177,10 +203,12 @@ func main() {
 	mainWindow.SetMaster()
 	mainWindow.Resize(fyne.NewSize(600, 400))
 
+	boundAccounts := binding.BindStringList(&listAccs.accounts)
+
 	menu := fyne.NewMainMenu(
 		fyne.NewMenu("File",
-			fyne.NewMenuItem("New Password File", func() { newPasswordFile(mainWindow) }),
-			fyne.NewMenuItem("Open Password File", func() {}),
+			fyne.NewMenuItem("New Password File", func() { newPasswordFile(mainWindow, boundAccounts) }),
+			fyne.NewMenuItem("Open Password File", func() { openPasswordFile(mainWindow, boundAccounts) }),
 		),
 		fyne.NewMenu("About",
 			fyne.NewMenuItem("License", func() {}),
@@ -191,7 +219,6 @@ func main() {
 	mainWindow.SetMainMenu(menu)
 
 	// bottom left (account listing)
-	boundAccounts := binding.BindStringList(&listAccs.accounts)
 
 	accountList := widget.NewListWithData(boundAccounts,
 		func() fyne.CanvasObject {
