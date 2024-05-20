@@ -151,11 +151,19 @@ func replaceNewFileWithOld() int {
 	}
 }
 
-func showAccountData(id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
-	accountDisplay.SetText(fmt.Sprintf(accounts.accounts[id]))
-	accountUsername.SetText("Test")
-	accountPassword.SetText("Test")
-	accountGrid.Hidden = false
+func showAccountData(parent fyne.Window, id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
+	message_error := C.read_message_extern(C.CString(filelocation[7:]), C.CString(string(key)), C.int(id+1))
+	if int(message_error.err) != 0 {
+		displayErrorDialog(int(message_error.err), parent)
+	} else {
+		temp_result := message_error.message
+		message := strings.Split(C.GoString(temp_result), "|")
+		C.deallocate_cstring(temp_result)
+		accountDisplay.SetText(fmt.Sprintf(accounts.accounts[id]))
+		accountUsername.SetText(message[1])
+		accountPassword.SetText(message[2])
+		accountGrid.Hidden = false
+	}
 }
 
 func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
@@ -194,6 +202,26 @@ func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
 			}
 		}, parent)
 		passwordForm.Show()
+	}
+}
+
+func modifyAccount(parent fyne.Window, accountList binding.ExternalStringList, account string, username string, password string) {
+	err := int(C.modify_account(C.CString(filelocation[7:]), C.CString(string(key)), C.CString(account), C.CString(username), C.CString(password)))
+	if err != 0 {
+		displayErrorDialog(err, parent)
+	} else {
+		err := replaceNewFileWithOld()
+		if err != 0 {
+			dialog.ShowInformation("Error", "There was an error applying changes to the old file", parent)
+		} else {
+			err := getFileHeader(filelocation, key)
+			if err != 0 {
+				displayErrorDialog(err, parent)
+			} else {
+				updateListAccs(accountList)
+				dialog.ShowInformation("Success", "Account modified successfully", parent)
+			}
+		}
 	}
 }
 
@@ -257,7 +285,9 @@ func main() {
 	accountUsername := widget.NewEntry()
 	accountPassword := widget.NewPasswordEntry()
 
-	accountModify := widget.NewButton("Modify Account Data", func() {})
+	accountModify := widget.NewButton("Modify Account Data", func() {
+		modifyAccount(mainWindow, boundAccounts, accountDisplay.Text, accountUsername.Text, accountPassword.Text)
+	})
 	accountDelete := widget.NewButton("Delete Account", func() {})
 	accountDetailsGrid := container.New(
 		layout.NewGridLayout(2),
@@ -271,7 +301,7 @@ func main() {
 	accountDetailsWithActions.Hidden = true
 
 	accountList.OnSelected = func(id widget.ListItemID) {
-		showAccountData(id, listAccs, accountDisplay, accountUsername, accountPassword, accountDetailsWithActions)
+		showAccountData(mainWindow, id, listAccs, accountDisplay, accountUsername, accountPassword, accountDetailsWithActions)
 	}
 
 	rightItems := container.New(layout.NewVBoxLayout(), topRight, layout.NewSpacer(), accountDetailsWithActions, layout.NewSpacer())
