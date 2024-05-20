@@ -159,8 +159,13 @@ func showAccountData(id int, accounts AccountsLoaded, accountDisplay *widget.Lab
 }
 
 func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
+<<<<<<< HEAD
 	if filelocation == "" || key == nil {
 		dialog.ShowInformation("Error", "You need to load an account file first. Go to File and create a new password file or open an existing one", parent)
+=======
+	if filelocation == "" {
+		dialog.ShowInformation("Error", "You need to load an account file first through the File menu.", parent)
+>>>>>>> 4d817b8804b383933581722ae28b76dc1d2ce376
 	} else {
 		accountField := widget.NewEntry()
 		accountFormItem := widget.NewFormItem("Enter Account or Website :", accountField)
