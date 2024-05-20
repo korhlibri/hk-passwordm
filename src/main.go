@@ -25,10 +25,10 @@ import (
 */
 import "C"
 
-//go:embed ./license.txt
+//go:embed license.txt
 var license string
 
-//go:embed ./dependency_licenses.txt
+//go:embed dependency_licenses.txt
 var dependency_licenses string
 
 type AccountsLoaded struct {
@@ -257,11 +257,41 @@ func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, a
 	confirmDialog.Show()
 }
 
+func displayLicense(hkPasswordm fyne.App) {
+	licenseWindow := hkPasswordm.NewWindow("License")
+
+	licenseEntry := widget.NewEntry()
+	licenseEntry.SetText(license)
+	licenseEntry.MultiLine = true
+	licenseEntry.Disabled()
+
+	content := container.NewBorder(nil, nil, nil, nil, licenseEntry)
+
+	licenseWindow.SetContent(content)
+	licenseWindow.Resize(fyne.NewSize(620, 500))
+	licenseWindow.Show()
+}
+
+func displayDependencyLicences(hkPasswordm fyne.App) {
+	licenseWindow := hkPasswordm.NewWindow("Dependency Licenses")
+
+	licenseEntry := widget.NewEntry()
+	licenseEntry.SetText(dependency_licenses)
+	licenseEntry.MultiLine = true
+	licenseEntry.Disabled()
+
+	content := container.NewBorder(nil, nil, nil, nil, licenseEntry)
+
+	licenseWindow.SetContent(content)
+	licenseWindow.Resize(fyne.NewSize(650, 500))
+	licenseWindow.Show()
+}
+
 func main() {
 	hkPasswordm := app.New()
 	mainWindow := hkPasswordm.NewWindow("hk-passwordm")
 	mainWindow.SetMaster()
-	mainWindow.Resize(fyne.NewSize(600, 400))
+	mainWindow.Resize(fyne.NewSize(640, 420))
 
 	boundAccounts := binding.BindStringList(&listAccs.accounts)
 
@@ -271,8 +301,8 @@ func main() {
 			fyne.NewMenuItem("Open Password File", func() { openPasswordFile(mainWindow, boundAccounts) }),
 		),
 		fyne.NewMenu("About",
-			fyne.NewMenuItem("License", func() {}),
-			fyne.NewMenuItem("Used Dependency Licenses", func() {}),
+			fyne.NewMenuItem("License", func() { displayLicense(hkPasswordm) }),
+			fyne.NewMenuItem("Used Dependency Licenses", func() { displayDependencyLicences(hkPasswordm) }),
 		),
 	)
 
