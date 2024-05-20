@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"os"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -28,7 +30,7 @@ type AccountsLoaded struct {
 }
 
 type MessageAndError struct {
-	message C.string
+	message *C.char
 	err     C.int
 }
 
@@ -38,11 +40,22 @@ var listAccs = AccountsLoaded{
 	page:      1,
 }
 
-func showAccountData(id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
-	accountDisplay.SetText(fmt.Sprintf(accounts.accounts[id]))
-	accountUsername.SetText("Test")
-	accountPassword.SetText("Test")
-	accountGrid.Hidden = false
+var filelocation string
+var header []string
+var key []byte
+
+func updateListAccs(accountList binding.ExternalStringList) {
+	lowerBound := (listAccs.page-1)*listAccs.maxLength + 1
+	upperBound := (listAccs.page-1)*listAccs.maxLength + listAccs.maxLength + 1
+	headerLength := len(header)
+	if headerLength < lowerBound {
+		listAccs.accounts = []string{}
+	} else if headerLength-lowerBound < upperBound {
+		listAccs.accounts = header[lowerBound:]
+	} else {
+		listAccs.accounts = header[lowerBound:upperBound]
+	}
+	accountList.Reload()
 }
 
 func derivePassword(password string) []byte {
@@ -50,11 +63,19 @@ func derivePassword(password string) []byte {
 }
 
 func displayErrorDialog(err int, parent fyne.Window) {
-	dialog.ShowInformation("Error", fmt.Sprintf("An error has occured. Error code : %d.", err), parent)
+	dialog.ShowInformation("Error", fmt.Sprintf("An error has occured. Error code : %d", err), parent)
 }
 
-func getFileHeader(fileLocation string, key []byte) {
-
+func getFileHeader(fileLocation string) int {
+	header_error := C.read_message_extern(C.CString(fileLocation[7:]), C.CString(string(key)), 0)
+	if int(header_error.err) != 0 {
+		return int(header_error.err)
+	} else {
+		temp_result := header_error.message
+		header = strings.Split(C.GoString(temp_result), "|")
+		C.deallocate_cstring(temp_result)
+		return 0
+	}
 }
 
 func getKeyWindow(parent fyne.Window, fileLocation string) {
@@ -67,8 +88,17 @@ func getKeyWindow(parent fyne.Window, fileLocation string) {
 			if err != 0 {
 				displayErrorDialog(err, parent)
 			} else {
-
+				key = password
+				err := getFileHeader(fileLocation)
+				if err != 0 {
+					displayErrorDialog(err, parent)
+				} else {
+					dialog.ShowInformation("Success", "File created and loaded successfully", parent)
+					filelocation = fileLocation
+				}
 			}
+		} else {
+			dialog.ShowInformation("Error", "You need to input a password", parent)
 		}
 	}, parent)
 	passwordForm.Show()
@@ -84,6 +114,61 @@ func newPasswordFile(parent fyne.Window) {
 	}, parent)
 	newFileDialog.SetFileName("passwords.hkpswd")
 	newFileDialog.Show()
+}
+
+func replaceNewFileWithOld() int {
+	err := os.Rename(fmt.Sprintf("%s.new", filelocation[7:]), filelocation[7:])
+	if err != nil {
+		return 1
+	} else {
+		return 0
+	}
+}
+
+func showAccountData(id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
+	accountDisplay.SetText(fmt.Sprintf(accounts.accounts[id]))
+	accountUsername.SetText("Test")
+	accountPassword.SetText("Test")
+	accountGrid.Hidden = false
+}
+
+func addAccount(parent fyne.Window, accountList binding.ExternalStringList) {
+	if filelocation == "" {
+		dialog.ShowInformation("Error", "You need to load an account file first. Go to File and create a new password file or open an existing one", parent)
+	} else {
+		accountField := widget.NewEntry()
+		accountFormItem := widget.NewFormItem("Enter Account or Website :", accountField)
+
+		usernameField := widget.NewEntry()
+		usernameFormItem := widget.NewFormItem("Enter Username :", usernameField)
+
+		passwordField := widget.NewPasswordEntry()
+		passwordFormItem := widget.NewFormItem("Enter Password :", passwordField)
+		passwordForm := dialog.NewForm("Password Entry", "Confirm Password for File", "Cancel", []*widget.FormItem{accountFormItem, usernameFormItem, passwordFormItem}, func(passed bool) {
+			if accountField.Text != "" || usernameField.Text != "" || passwordField.Text != "" {
+				err := int(C.add_account(C.CString(filelocation[7:]), C.CString(string(key)), C.CString(accountField.Text), C.CString(usernameField.Text), C.CString(passwordField.Text)))
+				if err != 0 {
+					displayErrorDialog(err, parent)
+				} else {
+					err := replaceNewFileWithOld()
+					if err != 0 {
+						dialog.ShowInformation("Error", "There was an error applying changes to the old file", parent)
+					} else {
+						err := getFileHeader(filelocation)
+						if err != 0 {
+							displayErrorDialog(err, parent)
+						} else {
+							updateListAccs(accountList)
+							dialog.ShowInformation("Success", "Account added successfully", parent)
+						}
+					}
+				}
+			} else {
+				dialog.ShowInformation("Error", "All fields are required to add an account", parent)
+			}
+		}, parent)
+		passwordForm.Show()
+	}
 }
 
 func main() {
@@ -105,26 +190,6 @@ func main() {
 
 	mainWindow.SetMainMenu(menu)
 
-	// top left (pagination and adding accounts)
-	pastPage := widget.NewButton("<", func() {})
-	setPage := widget.NewEntry()
-	nextPage := widget.NewButton(">", func() {})
-
-	loadingBar := widget.NewProgressBarInfinite()
-	loadingBar.Hide()
-
-	addAccount := widget.NewButton("+", func() {})
-
-	pagination := container.New(layout.NewHBoxLayout(), pastPage, setPage, nextPage)
-	topLeft := container.NewBorder(nil, nil, pagination, addAccount, loadingBar)
-
-	// top right (searching for specific account)
-	searchField := widget.NewEntry()
-	searchButton := widget.NewButton("", func() {})
-	searchButton.SetIcon(theme.SearchIcon())
-
-	topRight := container.NewBorder(nil, nil, nil, searchButton, searchField)
-
 	// bottom left (account listing)
 	boundAccounts := binding.BindStringList(&listAccs.accounts)
 
@@ -136,6 +201,27 @@ func main() {
 			o.(*widget.Label).Bind(i.(binding.String))
 		},
 	)
+
+	// top left (pagination and adding accounts)
+	pastPage := widget.NewButton("<", func() {})
+	setPage := widget.NewEntry()
+	nextPage := widget.NewButton(">", func() {})
+
+	loadingBar := widget.NewProgressBarInfinite()
+	loadingBar.Hide()
+
+	addAccount := widget.NewButton("+", func() { addAccount(mainWindow, boundAccounts) })
+
+	pagination := container.New(layout.NewHBoxLayout(), pastPage, setPage, nextPage)
+
+	topLeft := container.NewBorder(nil, nil, pagination, addAccount, loadingBar)
+
+	// top right (searching for specific account)
+	searchField := widget.NewEntry()
+	searchButton := widget.NewButton("", func() {})
+	searchButton.SetIcon(theme.SearchIcon())
+
+	topRight := container.NewBorder(nil, nil, nil, searchButton, searchField)
 
 	leftItems := container.NewBorder(topLeft, nil, nil, nil, accountList)
 

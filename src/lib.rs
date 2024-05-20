@@ -586,6 +586,7 @@ pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const 
     return MessageAndError{ message: CString::new(utf8_decoded).unwrap().into_raw(), err: 0};
 }
 
+#[no_mangle]
 pub extern "C" fn deallocate_cstring(to_deallocate: *mut c_char) {
     unsafe { drop(CString::from_raw(to_deallocate)); };
 }
