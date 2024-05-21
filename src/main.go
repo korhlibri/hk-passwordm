@@ -62,6 +62,8 @@ var listAccs = AccountsLoaded{
 	page:      1,
 }
 
+// Global variables that are always loaded.
+// This defines the password, the file location, and variables required for filtering.
 var filelocation string
 var header []string
 var filter bool = false
@@ -69,6 +71,7 @@ var header_filter []string = []string{"HK PASSWORD MANAGER FILE"}
 var header_index []int
 var key []byte
 
+// Used for pagination of non-filtered and filtered account listing.
 func updateListAccs(accountList binding.ExternalStringList) {
 	lowerBound := (listAccs.page-1)*listAccs.maxLength + 1
 	upperBound := (listAccs.page-1)*listAccs.maxLength + listAccs.maxLength + 1
@@ -89,6 +92,7 @@ func updateListAccs(accountList binding.ExternalStringList) {
 	accountList.Reload()
 }
 
+// This function converts the password to the required 32 bytes by ChaCha20 algorithm
 func derivePassword(password string) []byte {
 	return pbkdf2.Key([]byte(password), []byte("E7xtlY9rHf"), 4096, 32, sha256.New)
 }
@@ -98,6 +102,7 @@ func displayErrorDialog(err int, parent fyne.Window) {
 }
 
 func getFileHeader(fileLocation string, keyToUse []byte) int {
+	// Fyne prepends a file:// string to the file location. This needs to be removed with [7:]
 	header_error := C.read_message_extern(C.CString(fileLocation[7:]), C.CString(string(keyToUse)), 0)
 	if int(header_error.err) != 0 {
 		return int(header_error.err)
@@ -173,6 +178,8 @@ func openPasswordFile(parent fyne.Window, accountList binding.ExternalStringList
 	openFileDialog.Show()
 }
 
+// All changes made by Rust are placed in a .new file. If all the checks are passed and
+// there are no errors, the old file can be safely replaced by the new file.
 func replaceNewFileWithOld() int {
 	err := os.Rename(fmt.Sprintf("%s.new", filelocation[7:]), filelocation[7:])
 	if err != nil {
@@ -183,6 +190,9 @@ func replaceNewFileWithOld() int {
 }
 
 func showAccountData(parent fyne.Window, id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
+	// Filtering is used in case a search is currently in use.
+	// If no search is implemented, a 1 is added to the ID as the header is technically 1 indexed
+	// (as the first element is irrelevant and is only used to identify a password file)
 	list_id := id
 	if filter {
 		id = header_index[id]
@@ -288,6 +298,7 @@ func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, a
 }
 
 func pageLeft(accountPage binding.ExternalInt, accountList binding.ExternalStringList) {
+	// Disallows the page from going into negatives.
 	if listAccs.page <= 1 {
 		listAccs.page = 1
 	} else {
@@ -356,6 +367,7 @@ func displayDependencyLicences(hkPasswordm fyne.App) {
 }
 
 func main() {
+	// The main function is in charge of defining GUI elements as well as layouts.
 	hkPasswordm := app.New()
 	mainWindow := hkPasswordm.NewWindow("hk-passwordm")
 	mainWindow.SetMaster()

@@ -25,6 +25,8 @@ use std::str;
 use libc::c_char;
 use std::ffi::{CStr, CString};
 
+// Used to fill random bytes for containers that require a certain size
+// As an example, nonce of a certain length.
 fn fill_random_bytes(slice_to_fill: &[u8], target_length: usize) -> (Vec<u8>, u8) {
     if slice_to_fill.len() < target_length {
         let mut add_numbers = vec![0u8; (target_length - slice_to_fill.len()).into()];
@@ -40,6 +42,7 @@ fn fill_random_bytes(slice_to_fill: &[u8], target_length: usize) -> (Vec<u8>, u8
     }
 }
 
+// Adds padding to the file. This a message to have bytes that are multiple of the block size
 fn add_padding(slice_to_pad: &[u8]) -> (Vec<u8>, u8) {
     let mut padded_slice: Vec<u8> = slice_to_pad.to_vec();
     if padded_slice.len() % 64 != 0 {
@@ -53,6 +56,7 @@ fn add_padding(slice_to_pad: &[u8]) -> (Vec<u8>, u8) {
     return (padded_slice, 0);
 }
 
+// Removes the paddings. This allows the message to be read with readable utf-8 characters
 fn remove_padding(slice_remove_pad: &[u8]) -> (Vec<u8>, u8) {
     let padded_slice: Vec<u8> = slice_remove_pad.to_vec();
     let mut i = padded_slice.len() - 64;
@@ -82,6 +86,7 @@ pub extern "C" fn create_password_file(file_location: *const c_char, key: *const
     let key = GenericArray::clone_from_slice(&key[..32]);
     let cipher = XChaCha20Poly1305::new(&key);
 
+    // Generates the extended nonce used to encrypt the header
     let generate_nonce = {
         let begin = "".as_bytes();
         let (filled_slice, err) = fill_random_bytes(begin, 24);
@@ -136,6 +141,8 @@ fn read_header(file_location: &str, key: &[u8]) -> (String, u8) {
 
     let nonce = GenericArray::clone_from_slice(&nonce);
 
+    // Reads up until detecting the message separator. This can be anything.
+    // EMHKPSWD was chosen as it is 8 bytes in length. Block sizes and nonce can be divided by 8
     while &buffer != b"EMHKPSWD" {
         match f.read_exact(&mut buffer) {
             Ok(_) => (),
@@ -182,6 +189,9 @@ fn read_raw_message(file_location: &str, message_id: usize) -> (Vec<u8>, u8) {
     let mut current_id: usize = 0;
     let mut past_cursor: usize = 0;
     let mut current_cursor: usize = 0;
+    // Reads the entire file, skipping IDs that are not wanted.
+    // Once the separator is encountered, a 1 is added to a counter
+    // This counter represents the current message
     loop {
         while &buffer != b"EMHKPSWD" {
             match f.read_exact(&mut buffer) {
@@ -242,6 +252,10 @@ pub extern "C" fn add_account(file_location: *const c_char, key: *const c_char, 
         return 1;
     }
 
+    // Separates sthe header.
+    // The first element in the header is always an irrelevant string
+    // The header contains the accounts, allowing the access of accounts without
+    // decrypting the entire file
     let mut header_parts = current_header.split("|").collect::<Vec<&str>>();
     let account_entry = format!("{}", account);
 
@@ -293,6 +307,8 @@ pub extern "C" fn add_account(file_location: *const c_char, key: *const c_char, 
     };
 
     let mut i: usize = 1;
+    // This code prepends existing messages to the file.
+    // After the iteration, the new message is appended
     while i < (header_parts.len() - 1) {
         let (message, err) = read_raw_message(file_location, i);
         if err != 0 {
@@ -378,6 +394,8 @@ pub extern "C" fn modify_account(file_location: *const c_char, key: *const c_cha
         return 3;
     }
 
+    // The message is set to the new values and then joined again. Only the wanted message is
+    // modified.
     if message[0] != account.to_string() {
         return 2;
     }
@@ -418,6 +436,8 @@ pub extern "C" fn modify_account(file_location: *const c_char, key: *const c_cha
     };
 
     let mut i: usize = 0;
+    // If the message position does not equal to the position we are modifying, then the code
+    // uses the existing message. Otherwise, writes the modified message to the file.
     while i < (header_parts.len()) {
         if i != position {
             let (message, err) = read_raw_message(file_location, i);
@@ -472,6 +492,7 @@ pub extern "C" fn delete_account(file_location: *const c_char, key: *const c_cha
         None => return 2,
     };
 
+    // Removes the account from the header, conserving header validity.
     header_parts.remove(position);
 
     let new_header = header_parts.join("|");
@@ -513,6 +534,8 @@ pub extern "C" fn delete_account(file_location: *const c_char, key: *const c_cha
     };
 
     let mut i: usize = 1;
+    // Writes the messages from the old file to the new file. If the deleted account is encountered
+    // then that message is skipped.
     while i < (header_parts.len() + 1) {
         if i != position {
             let (message, err) = read_raw_message(file_location, i);
@@ -565,6 +588,7 @@ pub struct MessageAndError {
     err: i32,
 }
 
+// Reading message specifically for interfacing with other code.
 #[no_mangle]
 pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const c_char, message_id: usize) -> MessageAndError {
     // convert C char string to Rust string literals
@@ -600,6 +624,8 @@ pub extern "C" fn read_message_extern(file_location: *const c_char, key: *const 
     return MessageAndError{ message: CString::new(utf8_decoded).unwrap().into_raw(), err: 0};
 }
 
+// All CStrings need to be deallocated by Rust. After using CString in another language,
+// the string has to be passed to this function to avoid memory leaks.
 #[no_mangle]
 pub extern "C" fn deallocate_cstring(to_deallocate: *mut c_char) {
     unsafe { drop(CString::from_raw(to_deallocate)); };
