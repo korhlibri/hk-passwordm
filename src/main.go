@@ -50,18 +50,27 @@ var listAccs = AccountsLoaded{
 
 var filelocation string
 var header []string
+var filter bool = false
+var header_filter []string = []string{"HK PASSWORD MANAGER FILE"}
+var header_index []int
 var key []byte
 
 func updateListAccs(accountList binding.ExternalStringList) {
 	lowerBound := (listAccs.page-1)*listAccs.maxLength + 1
 	upperBound := (listAccs.page-1)*listAccs.maxLength + listAccs.maxLength + 1
-	headerLength := len(header)
-	if headerLength < lowerBound {
-		listAccs.accounts = []string{}
-	} else if headerLength-lowerBound < upperBound {
-		listAccs.accounts = header[lowerBound:]
+	var usedHeader []string
+	if filter {
+		usedHeader = header_filter
 	} else {
-		listAccs.accounts = header[lowerBound:upperBound]
+		usedHeader = header
+	}
+	headerLength := len(usedHeader)
+	if headerLength < lowerBound {
+		listAccs.accounts = nil
+	} else if headerLength-lowerBound < upperBound {
+		listAccs.accounts = usedHeader[lowerBound:]
+	} else {
+		listAccs.accounts = usedHeader[lowerBound:upperBound]
 	}
 	accountList.Reload()
 }
@@ -160,14 +169,20 @@ func replaceNewFileWithOld() int {
 }
 
 func showAccountData(parent fyne.Window, id int, accounts AccountsLoaded, accountDisplay *widget.Label, accountUsername *widget.Entry, accountPassword *widget.Entry, accountGrid *fyne.Container) {
-	message_error := C.read_message_extern(C.CString(filelocation[7:]), C.CString(string(key)), C.int(id+1))
+	list_id := id
+	if filter {
+		id = header_index[id]
+	} else {
+		id = list_id + 1
+	}
+	message_error := C.read_message_extern(C.CString(filelocation[7:]), C.CString(string(key)), C.int(id))
 	if int(message_error.err) != 0 {
 		displayErrorDialog(int(message_error.err), parent)
 	} else {
 		temp_result := message_error.message
 		message := strings.Split(C.GoString(temp_result), "|")
 		C.deallocate_cstring(temp_result)
-		accountDisplay.SetText(fmt.Sprintf(accounts.accounts[id]))
+		accountDisplay.SetText(fmt.Sprintf(accounts.accounts[list_id]))
 		accountUsername.SetText(message[1])
 		accountPassword.SetText(message[2])
 		accountGrid.Hidden = false
@@ -232,7 +247,7 @@ func modifyAccount(parent fyne.Window, account string, username string, password
 	}
 }
 
-func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, account string) {
+func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, account string, listWidget *widget.List) {
 	confirmDialog := dialog.NewConfirm("Delete Account", "Are you sure you would like to delete this account?", func(confirm bool) {
 		if confirm {
 			err := int(C.delete_account(C.CString(filelocation[7:]), C.CString(string(key)), C.CString(account)))
@@ -247,6 +262,7 @@ func deleteAccount(parent fyne.Window, accountList binding.ExternalStringList, a
 					if err != 0 {
 						displayErrorDialog(err, parent)
 					} else {
+						listWidget.UnselectAll()
 						updateListAccs(accountList)
 						dialog.ShowInformation("Success", "Account modified successfully", parent)
 					}
@@ -271,6 +287,28 @@ func pageRight(accountPage binding.ExternalInt, accountList binding.ExternalStri
 	listAccs.page += 1
 	accountPage.Reload()
 	updateListAccs(accountList)
+}
+
+func searchAccount(parent fyne.Window, accountList binding.ExternalStringList, searchField *widget.Entry, listWidget *widget.List) {
+	if filelocation == "" {
+		dialog.ShowInformation("Error", "You need to load an account file first through the File menu.", parent)
+	} else {
+		listWidget.UnselectAll()
+		if searchField.Text == "" {
+			filter = false
+		} else {
+			filter = true
+			header_filter = []string{"HK PASSWORD MANAGER FILE"}
+			header_index = nil
+			for i, v := range header {
+				if strings.Contains(v, searchField.Text) {
+					header_filter = append(header_filter, v)
+					header_index = append(header_index, i)
+				}
+			}
+		}
+		updateListAccs(accountList)
+	}
 }
 
 func displayLicense(hkPasswordm fyne.App) {
@@ -352,7 +390,7 @@ func main() {
 
 	// top right (searching for specific account)
 	searchField := widget.NewEntry()
-	searchButton := widget.NewButton("", func() {})
+	searchButton := widget.NewButton("", func() { searchAccount(mainWindow, boundAccounts, searchField, accountList) })
 	searchButton.SetIcon(theme.SearchIcon())
 
 	topRight := container.NewBorder(nil, nil, nil, searchButton, searchField)
@@ -368,7 +406,7 @@ func main() {
 		modifyAccount(mainWindow, accountDisplay.Text, accountUsername.Text, accountPassword.Text)
 	})
 	accountDelete := widget.NewButton("Delete Account", func() {
-		deleteAccount(mainWindow, boundAccounts, accountDisplay.Text)
+		deleteAccount(mainWindow, boundAccounts, accountDisplay.Text, accountList)
 	})
 	accountDetailsGrid := container.New(
 		layout.NewGridLayout(2),
