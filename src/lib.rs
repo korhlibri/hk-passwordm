@@ -1,4 +1,4 @@
-// hk-passwordm - Simple password manager using Flutter for GUI and Rust
+// hk-passwordm - Simple password manager using Fyne for GUI and Rust
 // Copyright (C) 2024 Hlib Korzhynskyy
 // 
 // This program is free software: you can redistribute it and/or modify it under the terms of
